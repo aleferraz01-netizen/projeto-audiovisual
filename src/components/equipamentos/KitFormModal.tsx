@@ -86,51 +86,67 @@ export default function KitFormModal({
     setError(null);
 
     try {
-      const kitPayload: any = {
-        nome,
-        descricao: descricao || null,
-        ativo: true,
-      };
+      let savedKit;
+
       if (kit?.id) {
-        kitPayload.id = kit.id;
+        const { data, error } = await supabase
+          .from("kits")
+          .update({
+            nome,
+            descricao: descricao || null,
+            ativo: true,
+          })
+          .eq("id", kit.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        savedKit = data;
+      } else {
+        const { data, error } = await supabase
+          .from("kits")
+          .insert({
+            nome,
+            descricao: descricao || null,
+            ativo: true,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        savedKit = data;
       }
 
-      const { data: savedKit, error: kitError } = await supabase
-        .from("kits")
-        .upsert(kitPayload)
-        .select()
-        .single();
-
-      if (kitError) throw kitError;
-      if (!savedKit) throw new Error("Erro ao salvar kit");
+      if (!savedKit) throw new Error("Kit não retornado após salvar");
 
       if (kit?.id) {
         await supabase.from("kit_itens").delete().eq("kit_id", savedKit.id);
       }
 
-      const kitItens = itens
+      const kitItensToSave = itens
         .filter((i) => i.descricao || i.equipamento_id)
         .map((i) => ({
           kit_id: savedKit.id,
-          equipamento_id: i.equipamento_id || null,
+          equipamento_id: i.equipamento_id ? i.equipamento_id : null,
           descricao: i.descricao || null,
           categoria: i.categoria || null,
           quantidade_padrao: i.quantidade,
         }));
 
-      if (kitItens.length > 0) {
+      if (kitItensToSave.length > 0) {
         const { error: itensError } = await supabase
           .from("kit_itens")
-          .insert(kitItens);
+          .insert(kitItensToSave);
+        
         if (itensError) throw itensError;
       }
 
       onSaved();
       onClose();
     } catch (err: any) {
-      const message = err?.message || (typeof err === "string" ? err : "Erro desconhecido ao salvar kit");
+      const message = err?.message || err?.details || err?.hint || (typeof err === "string" ? err : "Erro desconhecido ao salvar kit");
       setError(message);
-      console.error("Erro ao salvar kit:", err);
+      console.error("Erro ao salvar kit:", JSON.stringify(err, null, 2), err);
     } finally {
       setSaving(false);
     }
