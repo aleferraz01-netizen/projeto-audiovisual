@@ -86,14 +86,18 @@ export default function KitFormModal({
     setError(null);
 
     try {
+      const kitPayload: any = {
+        nome,
+        descricao: descricao || null,
+        ativo: true,
+      };
+      if (kit?.id) {
+        kitPayload.id = kit.id;
+      }
+
       const { data: savedKit, error: kitError } = await supabase
         .from("kits")
-        .upsert({
-          id: kit?.id || undefined,
-          nome,
-          descricao: descricao || null,
-          ativo: true,
-        })
+        .upsert(kitPayload)
         .select()
         .single();
 
@@ -123,8 +127,8 @@ export default function KitFormModal({
 
       onSaved();
       onClose();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erro desconhecido ao salvar kit";
+    } catch (err: any) {
+      const message = err?.message || (typeof err === "string" ? err : "Erro desconhecido ao salvar kit");
       setError(message);
       console.error("Erro ao salvar kit:", err);
     } finally {
