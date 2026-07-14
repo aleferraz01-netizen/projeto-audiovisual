@@ -1,24 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
   ArrowLeft,
   Save,
   FileText,
-  Send,
   Plus,
   Trash2,
-  Copy,
-  Headphones,
-  Volume2,
-  Video,
-  Users,
-  Monitor,
   ChevronDown,
   ChevronUp,
-  Zap,
 } from "lucide-react";
 import Button from "@/components/ui/button";
 import Input from "@/components/ui/input";
@@ -26,76 +17,8 @@ import Textarea from "@/components/ui/textarea";
 import Card, { CardContent, CardHeader } from "@/components/ui/card";
 import Badge from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
-import { Cliente, Equipamento, OrcamentoItem } from "@/types/database";
-
-interface KitDef {
-  id: string;
-  nome: string;
-  icon: any;
-  itens: { descricao: string; quantidade: number; categoria: string; equipamento_id?: string }[];
-}
-
-const kitsDisponiveis: KitDef[] = [
-  {
-    id: "traducao-2-50",
-    nome: "Tradução 2 idiomas - 50 pessoas",
-    icon: Headphones,
-    itens: [
-      { descricao: "Sistema de tradução para 2 canais", quantidade: 1, categoria: "Tradução" },
-      { descricao: "Cabine com isolamento acústico", quantidade: 1, categoria: "Tradução" },
-      { descricao: "Receptor com fone", quantidade: 50, categoria: "Tradução" },
-      { descricao: "Recepcionista", quantidade: 1, categoria: "Recurso Humano" },
-      { descricao: "Técnico", quantidade: 1, categoria: "Recurso Humano" },
-    ],
-  },
-  {
-    id: "traducao-3-100",
-    nome: "Tradução 3 idiomas - 100 pessoas",
-    icon: Headphones,
-    itens: [
-      { descricao: "Sistema de tradução para 3 canais", quantidade: 1, categoria: "Tradução" },
-      { descricao: "Cabine com isolamento acústico", quantidade: 2, categoria: "Tradução" },
-      { descricao: "Receptor com fone", quantidade: 100, categoria: "Tradução" },
-      { descricao: "Recepcionista", quantidade: 1, categoria: "Recurso Humano" },
-      { descricao: "Técnico", quantidade: 1, categoria: "Recurso Humano" },
-    ],
-  },
-  {
-    id: "sonorizacao-50",
-    nome: "Sonorização - 50 pessoas",
-    icon: Volume2,
-    itens: [
-      { descricao: "Sistema de sonorização ambiente", quantidade: 1, categoria: "Sonorização" },
-      { descricao: "Microfone de mão s/ fio UHF", quantidade: 2, categoria: "Sonorização" },
-      { descricao: "Mesa de som", quantidade: 1, categoria: "Sonorização" },
-      { descricao: "Caixa de som de 200 watts", quantidade: 2, categoria: "Sonorização" },
-      { descricao: "Técnico", quantidade: 1, categoria: "Recurso Humano" },
-    ],
-  },
-  {
-    id: "filmagem-transmissao",
-    nome: "Filmagem e Transmissão",
-    icon: Video,
-    itens: [
-      { descricao: "Câmeras PTZ 4k", quantidade: 2, categoria: "Filmagem" },
-      { descricao: "Mesa de corte SDI/HDMI", quantidade: 1, categoria: "Filmagem" },
-      { descricao: "Controladora PTZ", quantidade: 1, categoria: "Filmagem" },
-      { descricao: "Servidor nível II", quantidade: 1, categoria: "Filmagem" },
-      { descricao: "Técnico de transmissão", quantidade: 1, categoria: "Recurso Humano" },
-    ],
-  },
-];
-
-const categoriasOrdem = ["Tradução", "Sonorização", "Transmissão/Filmagem", "Mídia", "Recurso Humano", "Outros"];
-
-const categoriaIcons: Record<string, any> = {
-  Tradução: Headphones,
-  Sonorização: Volume2,
-  "Transmissão/Filmagem": Video,
-  Mídia: Monitor,
-  "Recurso Humano": Users,
-  Outros: Zap,
-};
+import { Cliente, Equipamento, Orcamento, OrcamentoItem, KitComItens } from "@/types/database";
+import { CATEGORIAS_ORDEM, CATEGORIA_ICONS } from "@/lib/constants";
 
 const statusOptions = [
   { value: "", label: "Finalizado (sem status)" },
@@ -109,7 +32,7 @@ function NovoOrcamentoPageContent() {
   const searchParams = useSearchParams();
   const editId = searchParams.get("id") || "";
   const preselectedCliente = searchParams.get("cliente") || "";
-  const [editingOrcamento, setEditingOrcamento] = useState<any>(null);
+  const [editingOrcamento, setEditingOrcamento] = useState<Orcamento | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -146,10 +69,7 @@ function NovoOrcamentoPageContent() {
     status: "",
   });
 
-  const [kits, setKits] = useState<any[]>([]);
-  const [modalKitOpen, setModalKitOpen] = useState(false);
-  const [editingKit, setEditingKit] = useState<any>(null);
-  const [kitForm, setKitForm] = useState<{ nome: string; descricao: string; itens: { equipamento_id: string; descricao: string; quantidade: number; categoria: string }[] }>({ nome: "", descricao: "", itens: [{ equipamento_id: "", descricao: "", quantidade: 1, categoria: "Tradução" }] });
+  const [kits, setKits] = useState<KitComItens[]>([]);
 
   useEffect(() => {
     async function loadData() {
@@ -161,79 +81,7 @@ function NovoOrcamentoPageContent() {
       setClientes((cliRes.data as Cliente[]) || []);
       setEquipamentos((eqRes.data as Equipamento[]) || []);
 
-      let kitsData = kitRes.data || [];
-
-      const defaultKits = [
-        {
-          nome: "Tradução 2 idiomas - 50 pessoas",
-          itens: [
-            { descricao: "Sistema de tradução para 2 canais", quantidade: 1, categoria: "Tradução" },
-            { descricao: "Cabine com isolamento acústico", quantidade: 1, categoria: "Tradução" },
-            { descricao: "Receptor com fone", quantidade: 50, categoria: "Tradução" },
-            { descricao: "Recepcionista", quantidade: 1, categoria: "Recurso Humano" },
-            { descricao: "Técnico", quantidade: 1, categoria: "Recurso Humano" },
-          ],
-        },
-        {
-          nome: "Tradução 3 idiomas - 100 pessoas",
-          itens: [
-            { descricao: "Sistema de tradução para 3 canais", quantidade: 1, categoria: "Tradução" },
-            { descricao: "Cabine com isolamento acústico", quantidade: 2, categoria: "Tradução" },
-            { descricao: "Receptor com fone", quantidade: 100, categoria: "Tradução" },
-            { descricao: "Recepcionista", quantidade: 1, categoria: "Recurso Humano" },
-            { descricao: "Técnico", quantidade: 1, categoria: "Recurso Humano" },
-          ],
-        },
-        {
-          nome: "Sonorização - 50 pessoas",
-          itens: [
-            { descricao: "Sistema de sonorização ambiente", quantidade: 1, categoria: "Sonorização" },
-            { descricao: "Microfone de mão s/ fio UHF", quantidade: 2, categoria: "Sonorização" },
-            { descricao: "Mesa de som", quantidade: 1, categoria: "Sonorização" },
-            { descricao: "Caixa de som de 200 watts", quantidade: 2, categoria: "Sonorização" },
-            { descricao: "Técnico", quantidade: 1, categoria: "Recurso Humano" },
-          ],
-        },
-        {
-          nome: "Filmagem e Transmissão",
-          itens: [
-            { descricao: "Câmeras PTZ 4k", quantidade: 2, categoria: "Transmissão/Filmagem" },
-            { descricao: "Mesa de corte SDI/HDMI", quantidade: 1, categoria: "Transmissão/Filmagem" },
-            { descricao: "Controladora PTZ", quantidade: 1, categoria: "Transmissão/Filmagem" },
-            { descricao: "Servidor nível II", quantidade: 1, categoria: "Transmissão/Filmagem" },
-            { descricao: "Técnico de transmissão", quantidade: 1, categoria: "Recurso Humano" },
-          ],
-        },
-      ];
-
-      const nomesExistentes = kitsData.map((k: any) => k.nome);
-      const kitsParaCriar = defaultKits.filter((dk) => !nomesExistentes.includes(dk.nome));
-
-      if (kitsParaCriar.length > 0) {
-        for (const kit of kitsParaCriar) {
-          const { data: newKit } = await supabase.from("kits").insert({
-            nome: kit.nome,
-            descricao: null,
-            ativo: true,
-          }).select().single();
-
-          if (newKit) {
-            const kitItens = kit.itens.map((ki) => {
-              const eq = equipamentos.find((e) => e.nome.toLowerCase() === ki.descricao.toLowerCase());
-              return {
-                kit_id: newKit.id,
-                equipamento_id: eq?.id || null,
-                quantidade_padrao: ki.quantidade,
-              };
-            });
-            await supabase.from("kit_itens").insert(kitItens);
-          }
-        }
-        const { data: refreshed } = await supabase.from("kits").select("*, kit_itens(*, equipamento:equipamentos(*))").eq("ativo", true);
-        kitsData = refreshed || [];
-      }
-
-      setKits(kitsData);
+      setKits((kitRes.data as KitComItens[]) || []);
 
       if (editId) {
         const { data: orc } = await supabase.from("orcamentos").select("*").eq("id", editId).single();
@@ -259,7 +107,7 @@ function NovoOrcamentoPageContent() {
 
           const { data: itensData } = await supabase.from("orcamento_itens").select("*").eq("orcamento_id", editId).order("ordem");
           if (itensData) {
-            setItens(itensData.map((item: any, idx: number) => ({
+            setItens(itensData.map((item: OrcamentoItem, idx: number) => ({
               ...item,
               bloco: item.bloco || item.categoria,
               id: `temp-${Date.now()}-${idx}`,
@@ -273,21 +121,21 @@ function NovoOrcamentoPageContent() {
     loadData();
   }, [editId]);
 
-  function addKit(kit: KitDef) {
+  function addKit(kit: KitComItens) {
     const blocoNome = kit.nome;
-    const novosItens: OrcamentoItem[] = kit.itens.map((kitItem, idx) => {
-      const eq = kitItem.equipamento_id
-        ? equipamentos.find((e) => e.id === kitItem.equipamento_id)
-        : equipamentos.find((e) => e.nome.toLowerCase() === kitItem.descricao.toLowerCase());
+    const novosItens: OrcamentoItem[] = kit.kit_itens.map((ki, idx) => {
+      const eq = ki.equipamento_id
+        ? equipamentos.find((e) => e.id === ki.equipamento_id)
+        : null;
 
       return {
         id: `temp-${Date.now()}-${idx}`,
         orcamento_id: "",
-        categoria: kitItem.categoria,
+        categoria: ki.categoria || eq?.categoria || "Outros",
         bloco: blocoNome,
-        equipamento_id: eq?.id || kitItem.equipamento_id || null,
-        descricao: kitItem.descricao || eq?.nome || "",
-        quantidade: kitItem.quantidade,
+        equipamento_id: ki.equipamento_id || null,
+        descricao: ki.descricao || eq?.nome || "",
+        quantidade: ki.quantidade_padrao,
         valor_unitario: eq?.valor_unitario || 0,
         dias: 1,
         subtotal: 0,
@@ -296,13 +144,6 @@ function NovoOrcamentoPageContent() {
     });
 
     novosItens.forEach((ni) => {
-      if (ni.equipamento_id) {
-        const eq = equipamentos.find((e) => e.id === ni.equipamento_id);
-        if (eq) {
-          ni.descricao = eq.nome;
-          ni.valor_unitario = eq.valor_unitario;
-        }
-      }
       ni.subtotal = ni.quantidade * ni.valor_unitario * ni.dias;
     });
 
@@ -368,7 +209,7 @@ function NovoOrcamentoPageContent() {
     );
   }
 
-  function updateItem(index: number, field: string, value: any) {
+  function updateItem(index: number, field: string, value: string | number | null) {
     setItens((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -392,7 +233,7 @@ function NovoOrcamentoPageContent() {
     setItens((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const subtotais = categoriasOrdem.reduce<Record<string, number>>((acc, cat) => {
+  const subtotais = CATEGORIAS_ORDEM.reduce<Record<string, number>>((acc, cat) => {
     acc[cat] = itens
       .filter((i) => i.categoria === cat)
       .reduce((sum, i) => sum + i.subtotal, 0);
@@ -409,8 +250,8 @@ function NovoOrcamentoPageContent() {
     e.preventDefault();
     setSaving(true);
 
-    let orcamento: any = null;
-    let error: any = null;
+    let orcamento: { id: string } | null = null;
+    let error: { message: string } | null = null;
 
     const payload = {
       cliente_id: form.cliente_id || null,
@@ -490,11 +331,10 @@ function NovoOrcamentoPageContent() {
     setHasChanges(true);
   }
 
-  useEffect(() => {
-    if (!loading && itens.length > 0) {
-      setHasChanges(true);
-    }
-  }, [itens, loading]);
+  const itensChanged = !loading && itens.length > 0;
+  if (itensChanged && !hasChanges) {
+    setHasChanges(true);
+  }
 
   useEffect(() => {
     if (!hasChanges || loading) return;
@@ -590,64 +430,6 @@ function NovoOrcamentoPageContent() {
     setCategoriasExpandidas((prev) => ({ ...prev, [cat]: !prev[cat] }));
   }
 
-  async function saveKit() {
-    const { data: kit } = await supabase.from("kits").upsert({
-      id: editingKit?.id || undefined,
-      nome: kitForm.nome,
-      descricao: kitForm.descricao || null,
-      ativo: true,
-    }).select().single();
-
-    if (kit) {
-      if (editingKit?.id) {
-        await supabase.from("kit_itens").delete().eq("kit_id", kit.id);
-      }
-      const kitItens = kitForm.itens
-        .filter((i) => i.equipamento_id)
-        .map((i) => ({
-          kit_id: kit.id,
-          equipamento_id: i.equipamento_id || null,
-          quantidade_padrao: i.quantidade,
-        }));
-      if (kitItens.length > 0) {
-        await supabase.from("kit_itens").insert(kitItens);
-      }
-    }
-
-    const { data: novosKits } = await supabase.from("kits").select("*, kit_itens(*, equipamento:equipamentos(*))").eq("ativo", true);
-    setKits(novosKits || []);
-    setModalKitOpen(false);
-    setEditingKit(null);
-    setKitForm({ nome: "", descricao: "", itens: [{ equipamento_id: "", descricao: "", quantidade: 1, categoria: "Tradução" }] });
-  }
-
-  async function deleteKit(kitId: string) {
-    if (!confirm("Excluir este kit?")) return;
-    await supabase.from("kits").delete().eq("id", kitId);
-    setKits((prev) => prev.filter((k) => k.id !== kitId));
-  }
-
-  function openEditKit(kit: any) {
-    setEditingKit(kit);
-    setKitForm({
-      nome: kit.nome,
-      descricao: kit.descricao || "",
-      itens: kit.kit_itens?.map((ki: any) => ({
-        equipamento_id: ki.equipamento_id || "",
-        descricao: ki.equipamento?.nome || "",
-        quantidade: ki.quantidade_padrao,
-        categoria: ki.equipamento?.categoria || "Outros",
-      })) || [{ equipamento_id: "", descricao: "", quantidade: 1, categoria: "Tradução" }],
-    });
-    setModalKitOpen(true);
-  }
-
-  function openNewKit() {
-    setEditingKit(null);
-    setKitForm({ nome: "", descricao: "", itens: [{ equipamento_id: "", descricao: "", quantidade: 1, categoria: "Tradução" }] });
-    setModalKitOpen(true);
-  }
-
   if (loading) return <div className="py-12 text-center text-gray-500">Carregando...</div>;
 
   return (
@@ -722,116 +504,28 @@ function NovoOrcamentoPageContent() {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Kits Prontos</h2>
-                <p className="text-sm text-gray-500">Clique para adicionar itens pré-configurados</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={openNewKit}>
-                <Plus className="h-4 w-4 mr-1" /> Novo Kit
-              </Button>
+            <div>
+              <h2 className="text-lg font-semibold">Kits Prontos</h2>
+              <p className="text-sm text-gray-500">Clique para adicionar itens pré-configurados</p>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
+            {kits.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">Nenhum kit cadastrado. Crie kits na página de Equipamentos.</p>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {kits.map((kit) => (
-                <div key={kit.id} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const kitConverted: KitDef = {
-                        id: kit.id,
-                        nome: kit.nome,
-                        icon: Headphones,
-                        itens: kit.kit_itens?.map((ki: any) => ({
-                          descricao: ki.equipamento?.nome || "",
-                          quantidade: ki.quantidade_padrao,
-                          categoria: ki.equipamento?.categoria || "Outros",
-                          equipamento_id: ki.equipamento_id || undefined,
-                        })) || [],
-                      };
-                      addKit(kitConverted);
-                    }}
-                    className="flex-1 text-left"
-                  >
-                    <p className="text-sm font-medium">{kit.nome}</p>
-                    <p className="text-xs text-gray-500">{kit.kit_itens?.length || 0} itens</p>
-                  </button>
-                  <button type="button" onClick={() => openEditKit(kit)} className="p-1 hover:bg-gray-200 rounded text-sm" title="Editar">✏️</button>
-                  <button type="button" onClick={() => deleteKit(kit.id)} className="p-1 hover:bg-red-100 rounded text-sm" title="Excluir">🗑️</button>
-                </div>
+                <button
+                  key={kit.id}
+                  type="button"
+                  onClick={() => addKit(kit)}
+                  className="p-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors text-left"
+                >
+                  <p className="text-sm font-medium">{kit.nome}</p>
+                  <p className="text-xs text-gray-500">{kit.kit_itens?.length || 0} itens</p>
+                </button>
               ))}
             </div>
-
-            {modalKitOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col">
-                  <div className="flex items-center justify-between px-6 py-4 border-b">
-                    <h3 className="text-lg font-semibold">{editingKit ? "Editar Kit" : "Novo Kit"}</h3>
-                    <button onClick={() => setModalKitOpen(false)} className="p-1 rounded hover:bg-gray-100">✕</button>
-                  </div>
-                  <div className="overflow-y-auto px-6 py-4 space-y-4">
-                    <Input label="Nome do Kit *" value={kitForm.nome} onChange={(e) => setKitForm((p) => ({ ...p, nome: e.target.value }))} required />
-                    <Input label="Descrição" value={kitForm.descricao} onChange={(e) => setKitForm((p) => ({ ...p, descricao: e.target.value }))} />
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Itens do Kit</label>
-                      {kitForm.itens.map((item, idx) => (
-                        <div key={idx} className="grid grid-cols-12 gap-2 items-end mb-2">
-                          <div className="col-span-5">
-                            <select value={item.equipamento_id} onChange={(e) => {
-                              const eq = equipamentos.find((eq) => eq.id === e.target.value);
-                              const novos = [...kitForm.itens];
-                              novos[idx].equipamento_id = e.target.value;
-                              novos[idx].descricao = eq?.nome || "";
-                              novos[idx].categoria = eq?.categoria || novos[idx].categoria;
-                              setKitForm((p) => ({ ...p, itens: novos }));
-                            }} className="w-full px-2 py-1.5 border rounded text-sm">
-                              <option value="">Selecionar equipamento...</option>
-                              {categoriasOrdem.map((c) => {
-                                const eqs = equipamentos.filter((e) => e.categoria === c && e.ativo);
-                                if (eqs.length === 0) return null;
-                                return (
-                                  <optgroup key={c} label={c}>
-                                    {eqs.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
-                                  </optgroup>
-                                );
-                              })}
-                            </select>
-                          </div>
-                          <div className="col-span-3">
-                            <select value={item.categoria} onChange={(e) => {
-                              const novos = [...kitForm.itens];
-                              novos[idx].categoria = e.target.value;
-                              setKitForm((p) => ({ ...p, itens: novos }));
-                            }} className="w-full px-2 py-1.5 border rounded text-sm">
-                              {categoriasOrdem.map((c) => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                          </div>
-                          <div className="col-span-2">
-                            <input type="number" min="1" value={item.quantidade} onChange={(e) => {
-                              const novos = [...kitForm.itens];
-                              novos[idx].quantidade = parseInt(e.target.value) || 1;
-                              setKitForm((p) => ({ ...p, itens: novos }));
-                            }} className="w-full px-2 py-1.5 border rounded text-sm" />
-                          </div>
-                          <div className="col-span-2">
-                            <button type="button" onClick={() => {
-                              setKitForm((p) => ({ ...p, itens: p.itens.filter((_, i) => i !== idx) }));
-                            }} className="p-1.5 text-red-500 hover:bg-red-50 rounded">✕</button>
-                          </div>
-                        </div>
-                      ))}
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setKitForm((p) => ({ ...p, itens: [...p.itens, { equipamento_id: "", descricao: "", quantidade: 1, categoria: "Tradução" }] }))}>
-                        <Plus className="h-3 w-3 mr-1" /> Adicionar item
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 px-6 py-4 border-t">
-                    <Button variant="outline" onClick={() => setModalKitOpen(false)}>Cancelar</Button>
-                    <Button onClick={saveKit} disabled={!kitForm.nome.trim()}>Salvar Kit</Button>
-                  </div>
-                </div>
-              </div>
             )}
           </CardContent>
         </Card>
@@ -862,10 +556,10 @@ function NovoOrcamentoPageContent() {
                 <p className="text-sm">Nenhum item adicionado. Use os kits prontos ou clique nos botões abaixo para criar blocos de serviço.</p>
               </div>
             ) : (
-              categoriasOrdem.map((cat) => {
+              CATEGORIAS_ORDEM.map((cat) => {
                 const catItens = itens.filter((i) => i.categoria === cat);
                 if (catItens.length === 0) return null;
-                const Icon = categoriaIcons[cat] || Zap;
+                const Icon = CATEGORIA_ICONS[cat];
                 const isExpanded = categoriasExpandidas[cat] !== false;
                 const blocos = [...new Set(catItens.map((i) => i.bloco))];
                 const totalCat = catItens.reduce((sum, i) => sum + i.subtotal, 0);
@@ -1036,7 +730,7 @@ function NovoOrcamentoPageContent() {
 
             <div className="flex flex-wrap gap-2 pt-2">
               <span className="text-xs text-gray-500 self-center mr-1">Adicionar bloco:</span>
-              {categoriasOrdem.map((cat) => (
+              {CATEGORIAS_ORDEM.map((cat) => (
                 <Button
                   key={cat}
                   type="button"
@@ -1057,7 +751,7 @@ function NovoOrcamentoPageContent() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {categoriasOrdem.map((cat) => {
+              {CATEGORIAS_ORDEM.map((cat) => {
                 if (!subtotais[cat] || subtotais[cat] === 0) return null;
                 return (
                   <div key={cat} className="flex justify-between text-sm">

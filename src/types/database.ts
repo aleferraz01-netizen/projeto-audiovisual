@@ -114,9 +114,15 @@ export interface Kit {
 export interface KitItem {
   id: string;
   kit_id: string;
-  equipamento_id: string;
+  equipamento_id: string | null;
   equipamento?: Equipamento;
+  descricao: string | null;
+  categoria: string | null;
   quantidade_padrao: number;
+}
+
+export interface KitComItens extends Kit {
+  kit_itens: (KitItem & { equipamento?: Equipamento })[];
 }
 
 export interface ExecucaoEvento {

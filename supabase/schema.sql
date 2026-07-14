@@ -115,6 +115,8 @@ CREATE TABLE kit_itens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   kit_id UUID REFERENCES kits(id) ON DELETE CASCADE,
   equipamento_id UUID REFERENCES equipamentos(id) ON DELETE CASCADE,
+  descricao TEXT,
+  categoria TEXT,
   quantidade_padrao INTEGER NOT NULL DEFAULT 1
 );
 

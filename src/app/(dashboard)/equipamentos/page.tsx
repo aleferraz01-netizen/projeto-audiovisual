@@ -1,44 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Package, Layers } from "lucide-react";
 import Button from "@/components/ui/button";
 import Input from "@/components/ui/input";
-import Select from "@/components/ui/select";
 import Card, { CardContent, CardHeader } from "@/components/ui/card";
 import Table, { TableHead, TableBody, TableRow, TableCell, TableHeader } from "@/components/ui/table";
 import Badge from "@/components/ui/badge";
 import Modal from "@/components/ui/modal";
+import KitList from "@/components/equipamentos/KitList";
+import KitFormModal from "@/components/equipamentos/KitFormModal";
 import { supabase } from "@/lib/supabase";
-import { Equipamento } from "@/types/database";
+import { CATEGORIAS, CATEGORIAS_FORM, CATEGORIA_COLORS } from "@/lib/constants";
+import { Equipamento, KitComItens } from "@/types/database";
 
-const categorias = [
+const categoriasFilter = [
   { value: "", label: "Todas as categorias" },
-  { value: "Tradução", label: "Tradução Simultânea" },
-  { value: "Sonorização", label: "Sonorização" },
-  { value: "Transmissão/Filmagem", label: "Transmissão/Filmagem" },
-  { value: "Mídia", label: "Mídia" },
-  { value: "Recurso Humano", label: "Recurso Humano" },
-  { value: "Outros", label: "Outros" },
+  ...CATEGORIAS,
 ];
-
-const categoriasForm = [
-  { value: "Tradução", label: "Tradução" },
-  { value: "Sonorização", label: "Sonorização" },
-  { value: "Transmissão/Filmagem", label: "Transmissão/Filmagem" },
-  { value: "Mídia", label: "Mídia" },
-  { value: "Recurso Humano", label: "Recurso Humano" },
-  { value: "Outros", label: "Outros" },
-];
-
-const categoriaColors: Record<string, "default" | "success" | "warning" | "info" | "danger"> = {
-  Tradução: "info",
-  Sonorização: "success",
-  "Transmissão/Filmagem": "danger",
-  Mídia: "warning",
-  "Recurso Humano": "info",
-  Outros: "default",
-};
 
 export default function EquipamentosPage() {
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
@@ -51,14 +30,34 @@ export default function EquipamentosPage() {
   const [form, setForm] = useState({ nome: "", categoria: "Tradução", descricao: "", valor_unitario: "" });
   const [saving, setSaving] = useState(false);
 
+  const [kits, setKits] = useState<KitComItens[]>([]);
+  const [kitsLoading, setKitsLoading] = useState(true);
+  const [kitModalOpen, setKitModalOpen] = useState(false);
+  const [kitModalKey, setKitModalKey] = useState(0);
+  const [editingKit, setEditingKit] = useState<KitComItens | null>(null);
+  const [deleteKitModal, setDeleteKitModal] = useState<KitComItens | null>(null);
+  const [kitTab, setKitTab] = useState<"equipamentos" | "kits">("equipamentos");
+
   useEffect(() => {
     loadEquipamentos();
+    loadKits();
   }, []);
 
   async function loadEquipamentos() {
     const { data } = await supabase.from("equipamentos").select("*").order("categoria").order("nome");
     setEquipamentos((data as Equipamento[]) || []);
     setLoading(false);
+  }
+
+  async function loadKits() {
+    setKitsLoading(true);
+    const { data } = await supabase
+      .from("kits")
+      .select("*, kit_itens(*, equipamento:equipamentos(*))")
+      .eq("ativo", true)
+      .order("nome");
+    setKits((data as KitComItens[]) || []);
+    setKitsLoading(false);
   }
 
   function openNew() {
@@ -107,6 +106,13 @@ export default function EquipamentosPage() {
     loadEquipamentos();
   }
 
+  async function handleDeleteKit() {
+    if (!deleteKitModal) return;
+    await supabase.from("kits").delete().eq("id", deleteKitModal.id);
+    setDeleteKitModal(null);
+    loadKits();
+  }
+
   const filtered = equipamentos.filter((eq) => {
     const matchSearch = eq.nome.toLowerCase().includes(search.toLowerCase()) || eq.descricao?.toLowerCase().includes(search.toLowerCase());
     const matchCategoria = !filterCategoria || eq.categoria === filterCategoria;
@@ -126,12 +132,47 @@ export default function EquipamentosPage() {
           <h1 className="text-2xl font-bold text-gray-900">Equipamentos</h1>
           <p className="text-sm text-gray-500">{equipamentos.length} equipamentos cadastrados</p>
         </div>
-        <Button onClick={openNew}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Equipamento
-        </Button>
+        {kitTab === "equipamentos" ? (
+          <Button onClick={openNew}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Equipamento
+          </Button>
+        ) : (
+          <Button onClick={() => { setEditingKit(null); setKitModalKey((k) => k + 1); setKitModalOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Kit
+          </Button>
+        )}
       </div>
 
+      <div className="flex gap-1 border-b border-gray-200">
+        <button
+          onClick={() => setKitTab("equipamentos")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            kitTab === "equipamentos"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <Package className="h-4 w-4 mr-1.5 inline" />
+          Equipamentos
+        </button>
+        <button
+          onClick={() => setKitTab("kits")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            kitTab === "kits"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <Layers className="h-4 w-4 mr-1.5 inline" />
+          Kits Prontos
+          <span className="ml-1.5 text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">{kits.length}</span>
+        </button>
+      </div>
+
+      {kitTab === "equipamentos" && (
+        <>
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -150,7 +191,7 @@ export default function EquipamentosPage() {
               onChange={(e) => setFilterCategoria(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
             >
-              {categorias.map((c) => (
+              {categoriasFilter.map((c) => (
                 <option key={c.value} value={c.value}>{c.label}</option>
               ))}
             </select>
@@ -169,7 +210,7 @@ export default function EquipamentosPage() {
               {Object.entries(grouped).map(([categoria, items]) => (
                 <div key={categoria}>
                   <div className="flex items-center gap-2 mb-3">
-                    <Badge variant={categoriaColors[categoria] || "default"}>{categoria}</Badge>
+                    <Badge variant={CATEGORIA_COLORS[categoria] || "default"}>{categoria}</Badge>
                     <span className="text-xs text-gray-500">({items.length} itens)</span>
                   </div>
                   <Table>
@@ -230,7 +271,7 @@ export default function EquipamentosPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
               required
             >
-              {categoriasForm.map((c) => (
+              {CATEGORIAS_FORM.map((c) => (
                 <option key={c.value} value={c.value}>{c.label}</option>
               ))}
             </select>
@@ -264,6 +305,36 @@ export default function EquipamentosPage() {
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setDeleteModal(null)}>Cancelar</Button>
           <Button variant="danger" onClick={handleDelete}>Excluir</Button>
+        </div>
+      </Modal>
+        </>
+      )}
+
+      {kitTab === "kits" && (
+        <KitList
+          kits={kits}
+          loading={kitsLoading}
+          onEdit={(kit) => { setEditingKit(kit); setKitModalKey((k) => k + 1); setKitModalOpen(true); }}
+          onDelete={setDeleteKitModal}
+        />
+      )}
+
+      <KitFormModal
+        key={kitModalKey}
+        isOpen={kitModalOpen}
+        onClose={() => { setKitModalOpen(false); setEditingKit(null); }}
+        kit={editingKit}
+        equipamentos={equipamentos}
+        onSaved={loadKits}
+      />
+
+      <Modal isOpen={!!deleteKitModal} onClose={() => setDeleteKitModal(null)} title="Confirmar exclusão" size="sm">
+        <p className="text-sm text-gray-600 mb-4">
+          Tem certeza que deseja excluir o kit <strong>{deleteKitModal?.nome}</strong>?
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setDeleteKitModal(null)}>Cancelar</Button>
+          <Button variant="danger" onClick={handleDeleteKit}>Excluir</Button>
         </div>
       </Modal>
     </div>
