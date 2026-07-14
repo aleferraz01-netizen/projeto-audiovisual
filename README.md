@@ -1,36 +1,137 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SAID Audio - Sistema de Gestao Audiovisual
 
-## Getting Started
+Sistema completo de gestao para empresa de locacao de equipamentos audiovisual e traducao simultanea. Gerenciamento de orcamentos, clientes, equipamentos, eventos, financeiro e relatorios.
 
-First, run the development server:
+## Stack
+
+- **Frontend:** Next.js 16, React 19, Tailwind CSS 4, TypeScript
+- **Backend:** Supabase (PostgreSQL, Auth, Row Level Security)
+- **Icones:** Lucide React
+- **Build:** Turbopack
+
+## Funcionalidades
+
+### Login
+- Autenticacao via Supabase Auth (email/senha)
+
+### Dashboard
+- Cards com metricas (orcamentos em aberto, aprovados, eventos da semana, total de clientes)
+- Links rapidos para acoes principais
+- Lista de orcamentos recentes
+
+### Clientes
+- Cadastro completo com CNPJ (auto-fill via BrasilAPI) e CPF
+- Telefone com formato (00) 0000-0000 e celular (00) 00000-0000
+- CEP com auto-fill via ViaCEP
+- Botao "Novo Orcamento" em cada cliente na lista
+- Busca por nome, empresa ou CNPJ/CPF
+
+### Equipamentos
+- Cadastro com categorias: Traducao, Sonorizacao, Transmissao/Filmagem, Midia, Recurso Humano, Outros
+- Filtro por categoria e busca por nome
+- Visualizacao agrupada por categoria com badges coloridos
+
+### Orcamentos
+- **Sistema de Blocos:** Cada clique em uma categoria cria um bloco independente com nome editavel
+  - Itens dentro de cada bloco com quantidade, valor unitario e dias independentes
+  - Permite eventos com servicos de 3 dias para um item e 2 dias para outro
+- **Kits Prontos:** Kits pre-configurados (Traducao 2/3 idiomas, Sonorizacao, Filmagem)
+  - Todos editaveis e excluiveis
+  - Selecao de equipamentos por dropdown ao criar/editar kit
+  - Auto-criacao dos kits padrao no banco na primeira carga
+- **Botoes de categoria:** +Traducao, +Sonorizacao, +Transmissao/Filmagem, +Midia, +Recurso Humano, +Outros
+  - Categoria "Outros" aceita texto livre (passagem aerea, taxi, combustivel, etc.)
+- **Status simplificados:** Rascunho, Confirmado, Cancelado (sem status = finalizado)
+- **Prompt de rascunho:** Ao sair com alteracoes nao salvas, pergunta se deseja salvar como rascunho
+- **PDF:** Geracao de HTML estilizado com logo, dados do evento, itens por bloco e totais
+- **Envio:** WhatsApp e Email direto pela pagina de detalhes
+- **Duplicar orcamento** com todos os itens
+- Edicao pelo mesmo formulario de criacao (`/orcamentos/novo?id=XXX`)
+
+### Eventos
+- Lista com status (Aberto, Em Andamento, Realizado, Cancelado)
+- Pagina de detalhes com dados operacionais (equipe, equipamentos, montagem/desmontagem)
+- Pos-execucao com fornecedores e custos extras
+
+### Financeiro
+- Transacoes de entrada e saida
+- Despesas mensais por tipo (salario, prolabore, luz, aluguel, equipamento, transporte, alimentacao, outros)
+- Filtro por mes/ano
+
+### Relatorios
+- Metricas gerais e graficos de desempenho
+
+## Estrutura do Banco (Tabelas Principais)
+
+| Tabela | Descricao |
+|--------|-----------|
+| `clientes` | Cadastro de clientes com CPF/CNPJ, contato, telefone, celular, endereco |
+| `equipamentos` | Equipamentos por categoria com valor unitario |
+| `orcamentos` | Orcamentos com dados do evento, subtotais por categoria, totais |
+| `orcamento_itens` | Itens do orcamento com bloco, categoria, quantidade, dias, subtotal |
+| `kits` | Kits de equipamentos pre-configurados |
+| `kit_itens` | Itens dos kits vinculados a equipamentos |
+| `eventos` | Eventos com dados operacionais |
+| `execucoes_evento` | Pos-execucao dos eventos |
+| `fornecedores_evento` | Fornecedores vinculados a execucao |
+| `despesas_mensais` | Despesas fixas mensais |
+| `transacoes_financeiras` | Entradas e saidas financeiras |
+
+## Setup
+
+```bash
+# Instalar dependencias
+npm install
+
+# Configurar variaveis de ambiente
+# Copie .env.example para .env.local e preencha as credenciais do Supabase
+```
+
+### Variaveis de Ambiente (.env.local)
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anon
+```
+
+### SQL do Banco
+
+Execute o conteudo de `supabase/schema.sql` no SQL Editor do Supabase Dashboard para criar as tabelas, triggers e RLS policies.
+
+Apos criar as tabelas, execute:
+
+```sql
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS celular TEXT;
+ALTER TABLE orcamento_itens ADD COLUMN IF NOT EXISTS bloco TEXT DEFAULT '';
+```
+
+### Iniciar
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Estrutura de Pastas
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+  app/
+    (auth)/login/           # Pagina de login
+    (dashboard)/
+      page.tsx              # Dashboard principal
+      clientes/             # CRUD de clientes
+      equipamentos/         # CRUD de equipamentos
+      orcamentos/           # Criacao, edicao e listagem de orcamentos
+      eventos/              # Gestao de eventos
+      financeiro/           # Controle financeiro
+      relatorios/           # Relatorios e metricas
+    api/pdf/                # Geracao de PDF
+  components/
+    layout/                 # Sidebar, Header, DashboardLayout
+    ui/                     # Componentes reutilizaveis (Button, Card, Input, etc.)
+  lib/supabase.ts           # Cliente Supabase
+  types/database.ts         # Tipos TypeScript do banco
+supabase/schema.sql         # Schema completo do banco
+```
