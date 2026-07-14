@@ -133,5 +133,15 @@ src/
     ui/                     # Componentes reutilizaveis (Button, Card, Input, etc.)
   lib/supabase.ts           # Cliente Supabase
   types/database.ts         # Tipos TypeScript do banco
-supabase/schema.sql         # Schema completo do banco
+  supabase/schema.sql         # Schema completo do banco
+  AGENTS.md                 # Diretrizes e fluxo de trabalho para agentes de IA
 ```
+
+## Diretrizes para Agentes de IA
+
+Este repositório possui regras e diretrizes automatizadas para agentes de IA descritas no arquivo [AGENTS.md](file:///c:/Users/aless/Documents/projeto-audiovisual/AGENTS.md). 
+
+Sempre que realizar novas implementações ou ajustes:
+1. Execute as validações locais (`npm run lint` e `npm run build`).
+2. Sincronize qualquer alteração de banco de dados em `supabase/schema.sql`.
+3. Garanta que o repositório remoto seja atualizado ao final da tarefa (usando commit e push).
